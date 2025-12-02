@@ -10,9 +10,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .fold(
             || 0,
             |acc, id_pair| {
-                let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-                let first = ids.first().unwrap().to_owned();
-                let second = ids.last().unwrap().to_owned();
+                let (first_str, second_str) = id_pair.split_once('-').unwrap();
+                let first = first_str.parse::<usize>().unwrap();
+                let second = second_str.parse::<usize>().unwrap();
                 acc + sequences(first..=second)
             },
         )
@@ -25,9 +25,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .fold(
             || 0,
             |acc, id_pair| {
-                let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-                let first = ids.first().unwrap().to_owned();
-                let second = ids.last().unwrap().to_owned();
+                let (first_str, second_str) = id_pair.split_once('-').unwrap();
+                let first = first_str.parse::<usize>().unwrap();
+                let second = second_str.parse::<usize>().unwrap();
                 acc + extended_sequences(first..=second)
             },
         )
@@ -38,26 +38,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn sequences(r: RangeInclusive<usize>) -> usize {
-    r.into_par_iter()
-        .fold(|| 0, |acc, x| acc + get_sequence(x))
-        .reduce(|| 0, |a, b| a + b)
+    r.into_par_iter().map(get_sequence).sum()
 }
 
 pub fn extended_sequences(r: RangeInclusive<usize>) -> usize {
-    r.into_par_iter()
-        .fold(|| 0, |acc, x| acc + get_extended_sequence(x))
-        .reduce(|| 0, |a, b| a + b)
+    r.into_par_iter().map(get_extended_sequence).sum()
 }
 
 pub fn get_sequence(input: usize) -> usize {
     let input_string = input.to_string();
     let length = input_string.len();
-    if length < 2 {
+    if length < 2 || !length.is_multiple_of(2) {
         return 0;
     }
 
-    let first: String = input_string.chars().take(length / 2).collect();
-    let second: String = input_string.chars().skip(length / 2).collect();
+    let mid = length / 2;
+    let (first, second) = input_string.split_at(mid);
 
     if first == second { input } else { 0 }
 }
@@ -69,15 +65,17 @@ pub fn get_extended_sequence(input: usize) -> usize {
         return 0;
     }
 
-    if (1..length).into_par_iter().any(|x| {
-        let mut parts = input_string.as_bytes().chunks(x);
-        let first = String::from_utf8_lossy(parts.next().unwrap());
-        input_string
-            .as_bytes()
-            .par_chunks(x)
-            .all(|part| String::from_utf8_lossy(part) == first)
-    }) {
-        return input;
+    for chunk_size in 1..length {
+        if !length.is_multiple_of(chunk_size) {
+            continue;
+        }
+
+        let mut chunks = input_string.as_bytes().chunks(chunk_size);
+        if let Some(first_chunk) = chunks.next()
+            && chunks.all(|chunk| chunk == first_chunk)
+        {
+            return input;
+        }
     }
 
     0
@@ -118,9 +116,9 @@ mod tests {
             .fold(
                 || 0,
                 |acc, id_pair| {
-                    let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-                    let first = ids.first().unwrap().to_owned();
-                    let second = ids.last().unwrap().to_owned();
+                    let (first_str, second_str) = id_pair.split_once('-').unwrap();
+                    let first = first_str.parse::<usize>().unwrap();
+                    let second = second_str.parse::<usize>().unwrap();
                     acc + sequences(first..=second)
                 },
             )
@@ -138,9 +136,9 @@ mod tests {
             .fold(
                 || 0,
                 |acc, id_pair| {
-                    let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-                    let first = ids.first().unwrap().to_owned();
-                    let second = ids.last().unwrap().to_owned();
+                    let (first_str, second_str) = id_pair.split_once('-').unwrap();
+                    let first = first_str.parse::<usize>().unwrap();
+                    let second = second_str.parse::<usize>().unwrap();
                     acc + extended_sequences(first..=second)
                 },
             )
