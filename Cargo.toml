@@ -5,3 +5,4 @@ members = ["day1", "day2", "day3"]
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
 rayon = "1.11"
+criterion = "0.8.0"
