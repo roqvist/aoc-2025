@@ -1,35 +1,52 @@
+use rayon::prelude::*;
 use std::ops::RangeInclusive;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let puzzle_input = include_str!("../puzzle_input.txt").trim();
 
-    let count = puzzle_input.split(',').fold(0, |acc, id_pair| {
-        let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-        let first = ids.first().unwrap().to_owned();
-        let second = ids.last().unwrap().to_owned();
-        acc + sequences(first..=second)
-    });
+    let count = puzzle_input
+        .par_split(',')
+        .fold(
+            || 0,
+            |acc, id_pair| {
+                let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
+                let first = ids.first().unwrap().to_owned();
+                let second = ids.last().unwrap().to_owned();
+                acc + sequences(first..=second)
+            },
+        )
+        .reduce(|| 0, |a, b| a + b);
 
     println!("Sum of Invalid IDs: {}", count);
 
-    let extended_count = puzzle_input.split(',').fold(0, |acc, id_pair| {
-        let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-        let first = ids.first().unwrap().to_owned();
-        let second = ids.last().unwrap().to_owned();
-        acc + extended_sequences(first..=second)
-    });
+    let extended_count = puzzle_input
+        .par_split(',')
+        .fold(
+            || 0,
+            |acc, id_pair| {
+                let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
+                let first = ids.first().unwrap().to_owned();
+                let second = ids.last().unwrap().to_owned();
+                acc + extended_sequences(first..=second)
+            },
+        )
+        .reduce(|| 0, |a, b| a + b);
 
     println!("Sum of Invalid IDs with extended method is: {}", extended_count);
     Ok(())
 }
 
 pub fn sequences(r: RangeInclusive<usize>) -> usize {
-    r.fold(0, |acc, x| acc + get_sequence(x))
+    r.into_par_iter()
+        .fold(|| 0, |acc, x| acc + get_sequence(x))
+        .reduce(|| 0, |a, b| a + b)
 }
 
 pub fn extended_sequences(r: RangeInclusive<usize>) -> usize {
-    r.fold(0, |acc, x| acc + get_extended_sequence(x))
+    r.into_par_iter()
+        .fold(|| 0, |acc, x| acc + get_extended_sequence(x))
+        .reduce(|| 0, |a, b| a + b)
 }
 
 pub fn get_sequence(input: usize) -> usize {
@@ -52,12 +69,15 @@ pub fn get_extended_sequence(input: usize) -> usize {
         return 0;
     }
 
-    for x in 1..length {
+    if (1..length).into_par_iter().any(|x| {
         let mut parts = input_string.as_bytes().chunks(x);
         let first = String::from_utf8_lossy(parts.next().unwrap());
-        if parts.all(|part| String::from_utf8_lossy(part) == first) {
-            return input;
-        }
+        input_string
+            .as_bytes()
+            .par_chunks(x)
+            .all(|part| String::from_utf8_lossy(part) == first)
+    }) {
+        return input;
     }
 
     0
@@ -93,12 +113,18 @@ mod tests {
     fn test_known_puzzle() {
         let puzzle_input = include_str!("../puzzle_input_test.txt").trim();
 
-        let count = puzzle_input.split(',').fold(0, |acc, id_pair| {
-            let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-            let first = ids.first().unwrap().to_owned();
-            let second = ids.last().unwrap().to_owned();
-            acc + sequences(first..=second)
-        });
+        let count = puzzle_input
+            .par_split(',')
+            .fold(
+                || 0,
+                |acc, id_pair| {
+                    let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
+                    let first = ids.first().unwrap().to_owned();
+                    let second = ids.last().unwrap().to_owned();
+                    acc + sequences(first..=second)
+                },
+            )
+            .reduce(|| 0, |a, b| a + b);
 
         assert_eq!(count, 1227775554);
     }
@@ -107,12 +133,18 @@ mod tests {
     fn test_known_puzzle_part_2() {
         let puzzle_input = include_str!("../puzzle_input_test.txt").trim();
 
-        let count = puzzle_input.split(',').fold(0, |acc, id_pair| {
-            let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
-            let first = ids.first().unwrap().to_owned();
-            let second = ids.last().unwrap().to_owned();
-            acc + extended_sequences(first..=second)
-        });
+        let count = puzzle_input
+            .par_split(',')
+            .fold(
+                || 0,
+                |acc, id_pair| {
+                    let ids: Vec<usize> = id_pair.split('-').map(|s| s.parse::<usize>().unwrap()).collect();
+                    let first = ids.first().unwrap().to_owned();
+                    let second = ids.last().unwrap().to_owned();
+                    acc + extended_sequences(first..=second)
+                },
+            )
+            .reduce(|| 0, |a, b| a + b);
 
         assert_eq!(count, 4174379265);
     }
