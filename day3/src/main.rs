@@ -3,7 +3,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let puzzle_input = include_str!("../puzzle_input.txt").trim();
     let sum: usize = puzzle_input.lines().map(find_largest_pair).sum();
     println!("Combined largest pairs: {}", sum);
-    let sum: usize = puzzle_input.lines().map(find_largest_twelve).sum();
+    let sum: usize = puzzle_input.lines().map(|l| find_largest_sequence(l, 12)).sum();
     println!("Combined largest twelves: {}", sum);
     Ok(())
 }
@@ -30,35 +30,29 @@ fn find_largest_pair(input: &str) -> usize {
     max
 }
 
-fn find_largest_twelve(input: &str) -> usize {
-    if input.len() < 12 {
-        return 0;
+fn find_largest_sequence(input: &str, sequence_size: usize) -> usize {
+    let mut result = 0;
+    if input.len() < sequence_size {
+        return result;
     }
 
-    let mut chunk = 12;
-    let mut max = 0;
-    let mut multiplier: usize = 100000000000;
     let mut skip = 0;
 
-    while chunk > 0 {
-        let working_set = &input[skip..];
-        let search_times = working_set.len().abs_diff(chunk);
-        let mut local_max = 0;
-        let mut local_skip = 0;
-        for i in 0..=search_times {
-            let val = working_set.chars().nth(i).unwrap().to_digit(10).unwrap();
-            if val > local_max {
-                local_max = val;
-                local_skip = i + 1;
-            }
-        }
-        max += local_max as usize * multiplier;
-        multiplier /= 10;
-        skip += local_skip;
-        chunk -= 1;
+    for i in (0..sequence_size).rev() {
+        let slice = &input[skip..];
+        let searches = slice.len().abs_diff(i + 1);
+
+        let (max, idx) = (0..=searches).fold((0, 0), |(curr_max, curr_idx), k| {
+            let val = slice.chars().nth(k).unwrap().to_digit(10).unwrap();
+            if val > curr_max { (val, k) } else { (curr_max, curr_idx) }
+        });
+
+        let multiplier = 10_usize.pow(i as u32);
+        result += max as usize * multiplier;
+        skip += idx + 1;
     }
 
-    max
+    result
 }
 
 #[cfg(test)]
@@ -78,13 +72,13 @@ mod tests {
     fn test_known_puzzle_part_2() {
         let puzzle_input = include_str!("../puzzle_input_test.txt").trim();
 
-        let sum: usize = puzzle_input.lines().map(find_largest_twelve).sum();
+        let sum: usize = puzzle_input.lines().map(|l| find_largest_sequence(l, 12)).sum();
 
         assert_eq!(sum, 3121910778619);
     }
 
     #[test]
     fn test_known_sequence() {
-        assert_eq!(find_largest_twelve("111119999999999999"), 999999999999);
+        assert_eq!(find_largest_sequence("111119999999999999", 12), 999999999999);
     }
 }
